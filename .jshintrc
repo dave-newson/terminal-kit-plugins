@@ -1,0 +1,11 @@
+{
+    "esversion": 6,
+    "node":      true,
+    "strict":    true,
+    "maxlen":    120,
+    "undef":     true,
+    "unused":    true,
+    "lastsemic": true,
+    "latedef"  : true,
+    "indent":    4
+}

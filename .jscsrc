@@ -1,0 +1,7 @@
+{
+    "preset": "airbnb",
+    "disallowTrailingWhitespace": null,
+    "validateIndentation": 4,
+    "validateLineBreaks": null,
+    "maximumLineLength": 120
+}

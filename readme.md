@@ -1,5 +1,7 @@
 # TerminalKit Plugins
 
+[![Build Status](https://travis-ci.org/dave-newson/terminal-kit-plugins.svg?branch=master)](https://travis-ci.org/dave-newson/terminal-kit-plugins)
+
 Useful additional tools for [TerminalKit](https://github.com/cronvel/terminal-kit).
 
 ## Installation

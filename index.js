@@ -14,6 +14,7 @@ module.exports.elements = {
     MessageBox: require('./lib/message-box').element,
     Message: require('./lib/message').element,
     TextPrompt: require('./lib/text-prompt').element,
+    HeaderBar: require('./lib/header-bar').element,
 };
 
 /**

@@ -2,9 +2,9 @@
 
 const expect = require('chai').expect;
 
-describe("Module", function() {
-    describe("Plugin", function () {
-        it("is available on the module as a function", function () {
+describe('Module', function() {
+    describe('Plugin', function () {
+        it('is available on the module as a function', function () {
 
             const module = require('../index.js');
 
@@ -14,8 +14,8 @@ describe("Module", function() {
         });
     });
 
-    describe("Elements", function () {
-        it("Contains all plugin elements", function () {
+    describe('Elements', function () {
+        it('Contains all plugin elements', function () {
 
             const module = require('../index.js');
 
@@ -28,6 +28,7 @@ describe("Module", function() {
                 'Message',
                 'MessageBox',
                 'TextPrompt',
+                'HeaderBar',
             ]);
 
         });

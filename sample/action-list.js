@@ -1,7 +1,7 @@
 'use strict';
 
 const term = require('terminal-kit').terminal;
-require('../../index.js').plugin(term);
+require('../index.js').plugin(term);
 
 const callback = function(item) {
     console.log(item);

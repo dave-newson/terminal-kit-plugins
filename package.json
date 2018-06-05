@@ -1,6 +1,6 @@
 {
   "name": "terminal-kit-plugins",
-  "version": "0.0.3",
+  "version": "1.0.4",
   "description": "Plugin features for terminal-kit",
   "main": "index.js",
   "scripts": {

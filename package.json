@@ -1,6 +1,6 @@
 {
   "name": "terminal-kit-plugins",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Plugin features for terminal-kit",
   "main": "index.js",
   "scripts": {
@@ -17,10 +17,10 @@
     "url": "git+https://github.com/dave-newson/terminal-kit-plugins.git"
   },
   "dependencies": {
-    "istanbul": "^0.4.5",
-    "terminal-kit": "^1.14.3"
+    "terminal-kit": "^1.17"
   },
   "devDependencies": {
+    "istanbul": "^0.4.5",
     "chai": "^4.1.2",
     "expect.js": "^0.3.1",
     "jscs": "^3.0.7",

@@ -1,5 +1,5 @@
 import {Terminal} from 'terminal-kit';
-import {TerminalKitPlugins} from "../types";
+import {TerminalKitPlugins} from '../types';
 
 /**
  * Element Factory

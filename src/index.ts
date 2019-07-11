@@ -11,7 +11,7 @@ import {MessageFactory} from './element/message';
 import {ActionListFactory} from './element/action-list';
 import {HeaderBarFactory} from './element/header-bar';
 import {DataTableFactory} from './element/data-table';
-import {BrowserActionFactory} from "./action/browser";
+import {BrowserActionFactory} from './action/browser';
 
 /**
  * Element list

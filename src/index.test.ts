@@ -31,6 +31,7 @@ describe('Module', () => {
                 'Image',
                 'Exec',
                 'Sleep',
+                'Browser'
             ]);
         });
     });

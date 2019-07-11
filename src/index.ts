@@ -11,6 +11,7 @@ import {MessageFactory} from './element/message';
 import {ActionListFactory} from './element/action-list';
 import {HeaderBarFactory} from './element/header-bar';
 import {DataTableFactory} from './element/data-table';
+import {BrowserActionFactory} from "./action/browser";
 
 /**
  * Element list
@@ -29,6 +30,7 @@ export const elements = {
     Image: ImageElementFactory,
     Exec: ExecActionFactory,
     Sleep: SleepActionFactory,
+    Browser: BrowserActionFactory,
 };
 
 /**

@@ -1,31 +1,37 @@
 {
   "name": "terminal-kit-plugins",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Plugin features for terminal-kit",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
   "scripts": {
-    "coverage": "istanbul cover node_modules/mocha/bin/_mocha test/{**/,/}*.js -- -R spec",
-    "precoveralls": "istanbul cover node_modules/mocha/bin/_mocha test/{**/,/}*.js --report lcovonly -- -R spec && npm i coveralls@2",
-    "coveralls": "cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js",
-    "lint:jscs": "jscs index.js lib",
-    "lint:jshint": "jshint index.js lib",
-    "lint": "npm run lint:jshint && npm run lint:jscs",
-    "test": "npm run lint && mocha test/{**/,/}*.js"
+    "build": "rm -rf dist && tsc",
+    "lint": "tslint --project \"./tsconfig.json\"",
+    "lint-fix": "tslint --fix --project \"./tsconfig.json\"",
+    "test": "jest --coverage",
+    "ci": "npm run lint && npm run build && npm run test",
+    "postversion": "git push && git push --tags",
+    "prepublishOnly": "npm run ci",
+    "preversion": "npm run ci"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dave-newson/terminal-kit-plugins.git"
   },
   "dependencies": {
-    "terminal-kit": "^1.17"
+    "terminal-kit": "^1.0"
   },
   "devDependencies": {
-    "istanbul": "^0.4.5",
-    "chai": "^4.1.2",
+    "@types/jest": "^24.0.15",
+    "@types/node": "^12.6.1",
+    "@types/terminal-kit": "^1.28.0",
     "expect.js": "^0.3.1",
-    "jscs": "^3.0.7",
-    "jshint": "^2.9.5",
-    "mocha": "^5.0.1"
+    "jest": "^24.8.0",
+    "nyc": "^14.1.1",
+    "ts-jest": "^24.0.2",
+    "ts-node": "^8.3.0",
+    "tslint": "^5.18.0",
+    "typescript": "^3.5.3"
   },
   "engines": {
     "node": ">=4.5.0"

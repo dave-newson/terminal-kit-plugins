@@ -1,14 +1,22 @@
-'use strict';
+#!/usr/bin/env -S npx ts-node
+// this script can be run directly from CLI
 
-const term = require('terminal-kit').terminal;
-require('../index.js').plugin(term);
+// Terminal
+import {terminal} from "terminal-kit";
+import {TerminalKitPlugins} from "../src/types";
+
+// Setup plugins
+import {plugin} from "../src/index";
+plugin(terminal);
+
+// Prompt
+const term = terminal as TerminalKitPlugins;
 
 term.clear();
-
 const table = term.DataTable({
     x: 0,
     y: 5,
-    width: null, // Full width
+    // width: undefined = Full width
     height: 5, // 5 items high
     style: term.brightWhite.bgBlack,
     selectedStyle: term.bgBrightWhite.black,
@@ -36,5 +44,5 @@ table.setData([
 
 table.promise.then((item) => {
     console.log("Selected: " + item.name);
-    term.processExit();
+    term.processExit(0);
 });

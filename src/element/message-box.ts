@@ -1,18 +1,45 @@
-'use strict';
+import {Terminal} from 'terminal-kit';
 
 /**
- * @name MessageBox
- * @class
+ * Element Factory
  */
-class MessageBox {
+export function MessageBoxFactory(terminal: Terminal, options: MessageBoxOptions) {
+    return new MessageBox(terminal, options);
+}
 
-    /**
-     * @param {term} term
-     * @param {object} options
-     */
-    constructor(term, { message, style, x = 'middle', y = 'middle', xPadding = 2, yPadding = 1, border = 2 }) {
+/**
+ * Options for the Message Box
+ */
+export interface MessageBoxOptions {
+    message: string;
+    style: Terminal;
+    x: string;
+    y: string;
+    xPadding: number;
+    yPadding: number;
+    border: number;
+}
+
+/**
+ * Displays text within a bordered, centered box.
+ * Good for big fat alert messages
+ */
+export class MessageBox {
+
+    private terminal: Terminal;
+    private lines: string[] = [];
+    private style: Terminal;
+    private x: string = 'middle';
+    private y: string = 'middle';
+    private padding: {x: number, y: number} = {x: 2, y: 1};
+    private border: number = 2;
+    private lineWidth: number = 0;
+
+    public constructor(
+        term: Terminal,
+        { message, style, x = 'middle', y = 'middle', xPadding = 2, yPadding = 1, border = 2 }: MessageBoxOptions
+    ) {
         this.terminal = term;
-        this.lines = String(message || '').split('\n');
         this.style = style || this.terminal.bgBrightWhite.black;
         this.x = x;
         this.y = y;
@@ -21,7 +48,10 @@ class MessageBox {
             y: yPadding,
         };
         this.border = border;
-        
+
+        // Break lines by \n
+        this.lines = String(message || '').split('\n');
+
         // Calculate lines max width
         this.lineWidth = 0;
         this.lines.forEach((line) => {
@@ -32,17 +62,17 @@ class MessageBox {
     /**
      * Redraw the message window
      */
-    redraw() {
+    public redraw(): void {
         const style = this.style;
 
         // Locate good text positions
-        let x = this.x;
-        if (x === 'middle') {
+        let x = 0;
+        if (this.x === 'middle') {
             x = Math.floor((this.terminal.width / 2) - (this.lineWidth / 2) - this.padding.x);
         }
 
-        let y = this.y;
-        if (y === 'middle') {
+        let y = 0;
+        if (this.y === 'middle') {
             y = Math.floor(this.terminal.height / 2) - this.padding.y;
         }
 
@@ -88,22 +118,24 @@ class MessageBox {
             empty.length,
             (this.padding.y * 2) + lines.length,
             {
-                style: style,
+                style,
                 border: this.border,
             }
         );
     }
 
+    public show(): void {
+        this.redraw();
+    }
+
     /**
      * Draws a box outline over the message box using ASCII box-drawing chars
-     *
-     * @param {int} x
-     * @param {int} y
-     * @param {int} w
-     * @param {int} h
-     * @param {{style, lines}} options
      */
-    drawOutline(x, y, w, h, { style = this.terminal.noFormat, border = 2 } = {}) {
+    private drawOutline(
+        x: number, y: number,
+        w: number, h: number,
+        { style, border }: { style: Terminal, border: number} = { style: this.terminal.noFormat, border: 2}
+    ): void {
 
         // No border? No outline.
         if (border === 0) {
@@ -135,15 +167,4 @@ class MessageBox {
         this.terminal.moveTo(x, y + h - 1);
         style(chars[6] + String().padEnd(w - 2, chars[1]) + chars[7]);
     }
-
-    show() {
-        this.redraw();
-    }
 }
-
-/**
- * Export Element
- *
- * @type {MessageBox}
- */
-exports.element = MessageBox;

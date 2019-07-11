@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "esModuleInterop": true,
+    "target": "es2017",
+    "module": "commonjs",
+    "declaration": true,
+    "strict": true,
+    "removeComments": true,
+    "baseUrl": "./src/"
+  },
+  "exclude": [
+    "dist/**/*",
+    "src/**/*.test.ts"
+  ],
+  "include": [
+    "src/**/*"
+  ]
+}

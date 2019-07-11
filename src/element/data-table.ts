@@ -1,11 +1,35 @@
-'use strict';
+import {EventEmitter} from 'events';
+import {Terminal} from 'terminal-kit';
 
-const EventEmitter = require('events').EventEmitter;
+/**
+ * Element Factory
+ */
+export function DataTableFactory(terminal: Terminal, options: DataTableOptions) {
+    return new DataTable(terminal, options);
+}
+
+export interface DataTableOptions {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    keyBindings?: { [key: string]: string };
+    allowCancel?: boolean;
+    style?: Terminal;
+    selectedStyle?: Terminal;
+    scrollPadding?: number;
+    padding?: number;
+    columns: ITableColumn[];
+    data?: any[];
+    paused?: boolean;
+    filter?: ((text: string, item: any) => boolean);
+    filterTextSize?: number;
+}
 
 /**
  * Default key bindings for Keyboard control
  */
-const defaultKeyBindings = {
+const defaultKeyBindings: { [key: string]: string } = {
     ENTER: 'submit',
     KP_ENTER: 'submit',
     UP: 'previousRow',
@@ -21,17 +45,53 @@ const defaultKeyBindings = {
 };
 
 /**
+ * Definition of a table column
+ */
+export interface ITableColumn {
+    get: string | ((object ?: any) => string);
+    style?: Terminal | ((item: any) => Terminal);
+    width: number;
+}
+
+/**
+ * Execute the column getter
+ */
+function getColumn( getMethod: string|(() => string), targetItem: any) {
+    let getter: ((item: any) => string);
+
+    if (typeof getMethod === 'string') {
+        getter = (item: any) => item[String(getMethod)];
+    } else {
+        getter = getMethod;
+    }
+
+    // Get data
+    return getter(targetItem);
+}
+
+/**
  * Configuration things that don't change
- *
  */
 class TableConfig {
 
-    /**
-     * @param {*} options
-     * @param {Terminal} terminal
-     * @constructor
-     */
-    constructor (options, terminal) {
+    public keyBindings: { [key: string]: string };
+    public x: number;
+    public y: number;
+    public style: {
+        default: Terminal,
+        selected: Terminal,
+    };
+    public scrollPadding: number;
+    public padding: number;
+    public filter?: ((text: string, item: any) => boolean);
+    public filterTextSize: number;
+    public columns: ITableColumn[];
+
+    constructor(terminal: Terminal, options: DataTableOptions) {
+
+        // Set defaults
+        options.width = options.width || terminal.width;
+        options.height = options.height || terminal.height;
 
         // Key bindings
         this.keyBindings = options.keyBindings || defaultKeyBindings;
@@ -45,9 +105,10 @@ class TableConfig {
         this.y = options.y || 0;
 
         // Styles
-        this.style = {};
-        this.style.default = options.style || terminal.bgBlack.brightWhite;
-        this.style.selected = options.selectedStyle || terminal.bgBrightYellow.black;
+        this.style = {
+            default: options.style || terminal.bgBlack.brightWhite,
+            selected: options.selectedStyle || terminal.bgBrightYellow.black,
+        };
 
         // Scroll Padding (how many lines before the edge to start scrolling)
         this.scrollPadding = options.scrollPadding || 3;
@@ -59,8 +120,8 @@ class TableConfig {
         this.columns = options.columns || [];
         this.columns.forEach((col) => {
             if (typeof col.get === 'string') {
-                let getStr = col.get;
-                col.get = function (item) {
+                const getStr = col.get;
+                col.get = (item) => {
                     return item[getStr];
                 };
             } else if (typeof col.get !== 'function') {
@@ -69,7 +130,7 @@ class TableConfig {
         });
 
         // Width of text input
-        this.filterTextSize = 16;
+        this.filterTextSize = options.filterTextSize || 16;
     }
 }
 
@@ -78,12 +139,11 @@ class TableConfig {
  */
 class RowItem {
 
-    /**
-     * @param {number} index
-     * @param {object} data
-     * @constructor
-     */
-    constructor(index, data) {
+    public cells: { [key: string]: any };
+    public visible: boolean;
+    public index: number;
+
+    constructor(index: number, data: {}) {
         this.cells = data;
         this.visible = true;
         this.index = index;
@@ -91,74 +151,15 @@ class RowItem {
 }
 
 /**
- * @name TableState
- * @class
+ * Holds the current state for the table
  */
 class TableState extends EventEmitter {
-
-    /**
-     * State container for the Widget
-     *
-     * @param {TableConfig} config
-     * @param {*} options
-     * @constructor
-     */
-    constructor(config, options) {
-        super();
-
-        this.config = config;
-        this.data = [];
-        this.selectedIndex = undefined;
-        this.paused = !!options.paused;
-        this._filter = '';
-        this._selected = undefined;
-
-        // Set display area
-        this.displayArea = {
-            x: options.x || 1,
-            y: options.y || 1,
-            width: options.width,
-            height: options.height,
-            xScroll: 0,
-            yScroll: 0,
-        };
-
-        // Set data
-        options.data = options.data || [];
-        this.items = options.data;
-    }
-
-    /**
-     * Return the filtered items
-     */
-    getFilteredItems() {
-        return this.items.filter((item) => item.visible);
-    }
-
-    /**
-     * Re-filter the data items by setting visibility flags
-     */
-    refilter() {
-        this.items.forEach((item) => {
-            let visible = false;
-
-            // Check for text in cells
-            this.config.columns.forEach((column) => {
-                if (String(column.get(item.cells)).indexOf(this.filter) > -1) {
-                    visible = true;
-                }
-            });
-
-            // Apply item state
-            item.visible = visible;
-        });
-    }
 
     /**
      * Items data
      * @return {Array<object>}
      */
-    get items() {
+    get items(): any[] {
         return this.data;
     }
 
@@ -166,7 +167,7 @@ class TableState extends EventEmitter {
      * Set items in table
      * @param {Array<object>} items
      */
-    set items(items) {
+    set items(items: any[]) {
         this.data = [];
 
         let i = 0;
@@ -182,17 +183,15 @@ class TableState extends EventEmitter {
 
     /**
      * Get filter text
-     * @return {string}
      */
-    get filter() {
+    get filter(): string {
         return String(this._filter);
     }
 
     /**
      * Set the filter text
-     * @param {string} text
      */
-    set filter(text) {
+    set filter(text: string) {
         this._filter = String(text).slice(0, this.config.filterTextSize);
 
         this.refilter();
@@ -202,19 +201,17 @@ class TableState extends EventEmitter {
 
     /**
      * Selected, as index
-     * @return {number}
      */
-    get selectedIndex() {
+    get selectedIndex(): number|undefined {
         return this._selected;
     }
 
     /**
      * Set the selected index in the table
-     * @param {number} index
      */
-    set selectedIndex(index) {
+    set selectedIndex(index: number|undefined) {
 
-        if (this.data[index] === undefined) {
+        if (index !== undefined && this.data[index] === undefined) {
             index = undefined;
         }
 
@@ -225,9 +222,8 @@ class TableState extends EventEmitter {
 
     /**
      * Selected, as object
-     * @return {object|null}
      */
-    get selected() {
+    get selected(): any|null {
 
         if (this._selected !== undefined) {
             return this.data[this._selected];
@@ -240,10 +236,8 @@ class TableState extends EventEmitter {
      * Set the selected item using an Object.
      * Object is seeked in the data set, and then the index is used.
      * If the object does not exist, nothing happens.
-     *
-     * @param {object|null} item
      */
-    set selected(item) {
+    set selected(item: any|null) {
 
         // If out-of-range selection
         if (item === undefined) {
@@ -256,6 +250,80 @@ class TableState extends EventEmitter {
             this.selectedIndex = item.index;
         }
     }
+    public data: any[];
+    public paused: boolean = false;
+    public resolve?: ((mixed?: any) => void);
+    public reject?: ((mixed?: any) => void);
+
+    public displayArea: {
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        xScroll: number,
+        yScroll: number,
+    } = {
+        x: 1,
+        y: 1,
+        width: 0,
+        height: 0,
+        xScroll: 0,
+        yScroll: 0,
+    };
+
+    private config: TableConfig;
+    private _filter: string = '';
+    private _selected: number|undefined;
+
+    /**
+     * State container for the Widget
+     */
+    constructor(config: TableConfig, options: DataTableOptions) {
+        super();
+
+        this.config = config;
+        this.paused = options.paused || false;
+
+        // Set display area
+        this.displayArea.x = options.x || 1;
+        this.displayArea.y = options.y || 1;
+        this.displayArea.width = options.width || 0;
+        this.displayArea.height = options.height || 0;
+
+        // Set data
+        this.data = options.data || [];
+    }
+
+    /**
+     * Return the filtered items
+     */
+    public getFilteredItems(): any[] {
+        return this.items.filter((item) => item.visible);
+    }
+
+    /**
+     * Re-filter the data items by setting visibility flags
+     */
+    public refilter(): void {
+        this.items.forEach((item) => {
+
+            // Check for text in cells
+            const found = this.config.columns.find((column) => {
+
+                // Custom filter, or plain text filter?
+                if (typeof this.config.filter === 'function') {
+                    return this.config.filter(this.filter, item);
+                } else {
+                    return (String(getColumn(column.get, item.cells))
+                        .toUpperCase()
+                        .indexOf(this.filter.toUpperCase()) > -1);
+                }
+            });
+
+            // Apply item state
+            item.visible = (found !== undefined);
+        });
+    }
 }
 
 /**
@@ -264,19 +332,22 @@ class TableState extends EventEmitter {
  *  - Filtered; by typing
  * - "Submitted"; chosen option is resolved in the table's Promise
  */
-class DataTable extends EventEmitter {
+export class DataTable extends EventEmitter {
+    public promise: Promise<any>;
 
-    /**
-     * @param {Terminal} terminal
-     * @param {object} options
-     * @constructor
-     */
-    constructor(terminal, options) {
+    private _term: Terminal;
+    private _config: TableConfig;
+    private _state: TableState;
+    private _events: { [ key: string]: (mixed?: any) => void };
+    private grabbing: boolean = false;
+
+    constructor(terminal: Terminal, options: DataTableOptions) {
         super();
         this._term = terminal;
 
-        this._config = new TableConfig(options, this._term);
+        this._config = new TableConfig(this._term, options);
         this._state = new TableState(this._config, options);
+        this.setData(options.data || []);
 
         this._events = {
             onKeyPress: this.onKeyPress.bind(this),
@@ -284,12 +355,12 @@ class DataTable extends EventEmitter {
         };
 
         // Attach Events
-        this._state.on('change', this._events.redraw);
-        this._term.on('key', this._events.onKeyPress);
+        this._state.on('change', this._events.redraw.bind(this));
+        this._term.on('key', this._events.onKeyPress.bind(this));
 
         // Grab the input state
         if (!this.grabbing) {
-            this._term.grabInput();
+            this._term.grabInput(true);
         }
 
         this.promise = new Promise((resolve, reject) => {
@@ -305,39 +376,34 @@ class DataTable extends EventEmitter {
 
             // Dispatch: Ready!
             this.emit('ready');
-
         });
     }
 
     /**
      * Move to the specified index
-     *
-     * @param {object} item
      */
-    setSelected(item) {
+    public setSelected(item: any): void {
         this._state.selected = item;
     }
 
     /**
      * When isSubmit is false, it sends a Cancel signal (undefined selection)
-     *
-     * @param {boolean} isSubmit
      */
-    submit(isSubmit) {
+    public submit(isSubmit: boolean): void {
         const data = (isSubmit) ? this._state.selected.cells : null;
 
         this._destroy();
 
         // Execute resolve
-        this._state.resolve(data);
+        if (this._state.resolve) {
+            this._state.resolve(data);
+        }
     }
 
     /**
      * Handle key presses
-     *
-     * @param {string} key
      */
-    onKeyPress(key) {
+    public onKeyPress(key: string): void {
 
         // When paused (no focus), do nothing.
         if (this._state.paused) {
@@ -385,7 +451,7 @@ class DataTable extends EventEmitter {
     /**
      * Redraw the current display area
      */
-    redraw() {
+    public redraw(): void {
 
         if (this._config.y !== undefined) {
             this._term.moveTo(1, this._config.y);
@@ -447,7 +513,7 @@ class DataTable extends EventEmitter {
         this._term.moveTo(this._state.displayArea.x, cursorPos);
 
         // Filter text
-        let filterText = ' Filter: [' + this._state.filter.padEnd(this._config.filterTextSize, ' ') + ']';
+        const filterText = ' Filter: [' + this._state.filter.padEnd(this._config.filterTextSize, ' ') + ']';
         this._config.style.default(filterText);
 
         // Move cursor to Table start position
@@ -488,7 +554,7 @@ class DataTable extends EventEmitter {
                 }
 
                 // Text fixed width
-                const text = String(column.get(item.cells))
+                const text = String(getColumn(column.get, item.cells))
                     .slice(0, column.width)
                     .padEnd(column.width + this._config.padding, ' ')
                     .padStart(column.width + (this._config.padding * 2), ' ');
@@ -509,7 +575,7 @@ class DataTable extends EventEmitter {
         // X More?
         this._term.moveTo(this._state.displayArea.x, cursorPos++);
 
-        let offScreen = filteredItems.length - height - this._state.displayArea.yScroll;
+        const offScreen = filteredItems.length - height - this._state.displayArea.yScroll;
         if (offScreen > 0) {
             this._config.style.default(' [ ' + offScreen + ' more items ... ] '.padEnd(this._state.displayArea.width));
         } else {
@@ -526,17 +592,9 @@ class DataTable extends EventEmitter {
     }
 
     /**
-     * Destroy the element int
-     * @private
-     */
-    _destroy() {
-        this._term.off('key', this._events.onKeyPress);
-    }
-
-    /**
      * Cancel selection, disable the element
      */
-    abort() {
+    public abort(): void {
         this._state.paused = true;
         this._destroy();
     }
@@ -544,23 +602,21 @@ class DataTable extends EventEmitter {
     /**
      * Pause this element, suspending input
      */
-    pause() {
+    public pause(): void {
         this._state.paused = true;
     }
 
     /**
      * Resume this element
      */
-    resume() {
+    public resume(): void {
         this._state.paused = false;
     }
 
     /**
      * Give focus to this element
-     *
-     * @param {boolean} giveFocus
      */
-    focus(giveFocus = true) {
+    public focus(giveFocus: boolean = true): void {
         if (giveFocus) {
             this.resume();
         } else {
@@ -571,17 +627,15 @@ class DataTable extends EventEmitter {
     /**
      * Set the data array for this table
      * The data structure within the array should match the table options.
-     *
-     * @param {Array<{object}>} data
      */
-    setData(data) {
+    public setData(data: any[]): void {
         this._state.items = data;
     }
-}
 
-/**
- * Export Element
- *
- * @type {MessageBox}
- */
-exports.element = DataTable;
+    /**
+     * Destroy the element int
+     */
+    private _destroy(): void {
+        this._term.off('key', this._events.onKeyPress);
+    }
+}

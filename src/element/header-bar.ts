@@ -1,54 +1,73 @@
-'use strict';
+import * as Util from 'util';
+import {EventEmitter} from 'events';
+import {Terminal} from 'terminal-kit';
 
-const Util = require('util');
-const EventEmitter = require('events').EventEmitter;
+/**
+ * Element Factory
+ */
+export function HeaderBarFactory(terminal: Terminal, options: HeaderBarOptions) {
+    return new HeaderBar(terminal, options);
+}
 
-const EVENT_SELECTED = 'selected';
+export interface HeaderBarOptions {
+    x?: number;
+    y?: number;
+    width: null|number;
+    style?: Terminal;
+    divider?: string;
+    dividerStyle?: Terminal;
+    padding?: number;
+    get: string|((object: any) => string);
+    getKey: string|((object: HeaderBarItem) => string);
+}
+
+export class HeaderBarEvents {
+    public static readonly SELECTED = 'selected';
+}
+
+/**
+ * Item on the header bar
+ */
+export interface HeaderBarItem {
+    label: string;
+    key: string;
+}
 
 /**
  * Shows a header bar menu
- *
- * @name HeaderBar
- * @class
  */
-class HeaderBar {
+export class HeaderBar {
+
+    private _eventEmitter: EventEmitter;
+    private _terminal: Terminal;
+    private _onKeyEvent: (key: string) => void;
+    private _items: HeaderBarItem[];
+    private _options: HeaderBarOptions;
 
     constructor(
-        term,
-        {
-            x = 1,
-            y = 1,
-            width = null,
-            style = null,
-            divider = '│',
-            dividerStyle = null,
-            padding = 4,
-            get = null,
-            getKey = null,
-        }
+        term: Terminal,
+        options: HeaderBarOptions
     ) {
         this._eventEmitter = new EventEmitter();
         this._terminal = term;
         this._onKeyEvent = this._onKey.bind(this);
-
-        this._options = {
-            x: x,
-            y: y,
-            width: width || this._terminal.width,
-            style: style || this._terminal.noFormat,
-            divider: divider,
-            dividerStyle: dividerStyle || style,
-            padding: padding,
-            get: get,
-            getKey: getKey,
-        };
-
         this._items = [];
+
+        // Set defaults
+        options.x = options.x || 0;
+        options.y = options.y || 0;
+        options.width = options.width || this._terminal.width;
+        options.style = options.style || this._terminal.noFormat;
+        options.divider = options.divider || '|';
+        options.padding = options.padding || 1;
+        options.dividerStyle = options.dividerStyle || options.style;
+
+        this._options = options;
 
         this.focus();
     }
 
-    abort() {
+    public abort(): void {
         this.blur();
     }
 
@@ -56,7 +75,7 @@ class HeaderBar {
      * Focus the element
      * Causes it to accept key presses
      */
-    focus() {
+    public focus(): void {
         // On key press
         this._terminal.on('key', this._onKeyEvent);
     }
@@ -65,17 +84,14 @@ class HeaderBar {
      * Blur the element
      * Causes it to no longer hear key presses
      */
-    blur() {
+    public blur(): void {
         this._terminal.off('key', this._onKeyEvent);
     }
 
     /**
      * Add an item to the list
-     *
-     * @param object
-     * @return HeaderBar
      */
-    add(object) {
+    public add(object: any): this {
         this._items.push(object);
         return this;
     }
@@ -83,9 +99,9 @@ class HeaderBar {
     /**
      * Redraw the menu element
      */
-    redraw() {
+    public redraw(): void {
 
-        const menuItems = [];
+        const menuItems: HeaderBarItem[] = [];
 
         // Get all items
         this._items.map((item) => {
@@ -100,6 +116,10 @@ class HeaderBar {
 
         let lineLen = 0;
 
+        // Styles
+        const style = this._options.style || this._terminal.noFormat;
+        const dividerStyle = this._options.dividerStyle || style;
+
         // Draw each element
         menuItems.forEach((item) => {
 
@@ -107,28 +127,33 @@ class HeaderBar {
             lineLen += str.length;
 
             // Render label
-            this._options.style(str);
+            style(str);
 
             // Render divider
-            this._options.dividerStyle(this._options.divider);
-            lineLen += this._options.divider.length;
+            dividerStyle(this._options.divider);
+            lineLen += String(this._options.divider).length;
         });
 
         // Draw padding to line end, in the desired menu element style
         const fill = this._terminal.width - lineLen;
-        this._options.style(String('').padEnd(fill, ' '));
+        style(String('').padEnd(fill, ' '));
+    }
+
+    /**
+     * On event, perform action
+     */
+    public on(event: string, listener: (mixed?: any) => void): this {
+        this._eventEmitter.on(event, listener);
+        return this;
     }
 
     /**
      * Ok key press, perform action
-     *
-     * @param {string} key
-     * @private
      */
-    _onKey(key) {
+    private _onKey(key: string): void {
 
         // Find the mapped item
-        const item = this._items.find((item) => {
+        const found = this._items.find((item) => {
             const itemKey = this._getKey(item);
             if (key === itemKey) {
                 return item;
@@ -136,22 +161,18 @@ class HeaderBar {
         });
 
         // Do nothing if key not matched
-        if (item === undefined) {
+        if (found === undefined) {
             return;
         }
 
         // Emit selection event
-        this._eventEmitter.emit(EVENT_SELECTED, item);
+        this._eventEmitter.emit(HeaderBarEvents.SELECTED, found);
     }
 
     /**
      * Get the key for the given item
-     *
-     * @param {object} item
-     * @returns {string}
-     * @private
      */
-    _getKey(item) {
+    private _getKey(item: any): string {
         if (typeof this._options.getKey === 'function') {
             // Function getter
             return this._options.getKey(item);
@@ -166,12 +187,8 @@ class HeaderBar {
 
     /**
      * Get the label for the given item
-     *
-     * @param {object} item
-     * @returns {string}
-     * @private
      */
-    _getLabel(item) {
+    private _getLabel(item: any): string {
 
         if (typeof this._options.get === 'function') {
             // Function getter
@@ -186,23 +203,4 @@ class HeaderBar {
             throw new Error('Getter option ("get") was not set for Header Bar element.');
         }
     }
-
-    /**
-     * On event, perform action
-     *
-     * @param {string} event
-     * @param {function} listener
-     * @return HeaderBar
-     */
-    on(event, listener) {
-        this._eventEmitter.on(event, listener);
-        return this;
-    }
 }
-
-/**
- * Export Element
- *
- * @type {MessageBox}
- */
-exports.element = HeaderBar;

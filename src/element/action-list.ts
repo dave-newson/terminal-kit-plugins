@@ -1,8 +1,14 @@
-'use strict';
+import * as util from 'util';
+import {Terminal} from 'terminal-kit';
 
-const util = require('util');
+/**
+ * Element Factory
+ */
+export function ActionListFactory(terminal: Terminal, options: ActionListOptions) {
+    return new ActionList(terminal, options);
+}
 
-const KEY_MAP = {
+const KEY_MAP: { [key: string]: string } = {
     UP: 'up',
     DOWN: 'down',
     ENTER: 'selected',
@@ -10,19 +16,14 @@ const KEY_MAP = {
 
 /**
  * Represents a single action
- *
- * @name Action
- * @class
- * @private
  */
 class Action {
 
-    /**
-     * @param {string} label
-     * @param {function} func
-     * @param {function} conditionFunc
-     */
-    constructor(label, func, conditionFunc) {
+    private _label: string;
+    private _func: (() => void);
+    private _conditionFunc: null|(() => boolean);
+
+    constructor(label: string, func: (() => void), conditionFunc: null|(() => boolean)) {
         this._label = label;
         this._func = func;
         this._conditionFunc = conditionFunc;
@@ -30,10 +31,9 @@ class Action {
 
     /**
      * Check if this action is visible or not
-     * @returns {boolean}
      */
-    isVisible() {
-        if (typeof this._conditionFunc === 'function') {
+    public isVisible(): boolean {
+        if (this._conditionFunc) {
             return this._conditionFunc();
         }
 
@@ -43,36 +43,48 @@ class Action {
     /**
      * Returns the label of the Action
      */
-    toString() {
+    public toString(): string {
         return String(this._label);
     }
 
     /**
      * Execute the action function
      */
-    call() {
-        return this._func.call();
+    public call(): any {
+        return this._func();
     }
 }
 
 /**
- * Creates a menu of available actions.
- *
- * @name ActionList
- * @class
+ * Options that can be passed to an ActionList
  */
-class ActionList {
+export interface ActionListOptions {
+    style: Terminal;
+    selectedStyle: Terminal;
+    x: number|null;
+    y: number|null;
+    width: number|null;
 
-    /**
-     * @param {Terminal} terminal
-     * @param {object} options
-     */
-    constructor(terminal, options) {
+}
+
+/**
+ * Creates a menu of available actions.
+ */
+export class ActionList {
+
+    private _terminal: Terminal;
+    private _options: ActionListOptions;
+    private _actions: Action[] = [];
+    private _actionsVisible: Action[] = [];
+    private _selectedIndex: number = 0;
+    private _promise: {
+        resolve?: (result: any) => void,
+        reject?: () =>  void,
+    } = {};
+    private _events: { [key: string]: ((mixed: any) => void) };
+
+    constructor(terminal: Terminal, options: ActionListOptions) {
         this._terminal = terminal;
-        this._actions = [];
-        this._actionsVisible = [];
-        this._selectedIndex = 0;
-        this._promise = null;
 
         // Set default styles
         options.style = options.style || this._terminal.noFormat;
@@ -93,24 +105,16 @@ class ActionList {
 
     /**
      * Add an available action
-     *
-     * @param {string} label
-     * @param {function} func
-     * @param {void|function} conditionFunc
-     * @return ActionList
      */
-    add(label, func, conditionFunc = null) {
+    public add(label: string, func: (() => void), conditionFunc: null|(() => boolean) = null): this {
         this._actions.push(new Action(label, func, conditionFunc));
         return this;
     }
 
     /**
      * Set options for the menu (additive)
-     *
-     * @param {object} options
-     * @return ActionList
      */
-    options(options) {
+    public options(options: ActionListOptions): this {
         this._options = Object.assign({}, this._options, options);
         return this;
     }
@@ -118,10 +122,8 @@ class ActionList {
     /**
      * Show the menu
      * Returns a promise. Resolves to the return value of the chosen action.
-     *
-     * @returns {Promise<*>}
      */
-    show() {
+    public show(): Promise<void> {
         return new Promise((resolve, reject) => {
 
             // Bind events
@@ -131,8 +133,8 @@ class ActionList {
             this.redraw();
 
             this._promise = {
-                resolve: resolve,
-                reject: reject,
+                resolve,
+                reject,
             };
         });
     }
@@ -140,7 +142,7 @@ class ActionList {
     /**
      * Redraw the element
      */
-    redraw() {
+    public redraw(): void {
 
         // Move to position
         if (this._options.x !== null && this._options.y !== null) {
@@ -157,7 +159,7 @@ class ActionList {
 
         // Get Width either from settings or from options
         let maxWidth = 0;
-        if (this._options.width > 0) {
+        if (this._options.width !== null) {
             maxWidth = this._options.width;
         } else {
             this._actions.forEach((action) => {
@@ -192,18 +194,17 @@ class ActionList {
     /**
      * Aborts the menu without making a selection.
      */
-    abort() {
+    public abort(): void {
         // unbind events
         this._terminal.off('key', this._events.onKeyPress);
     }
 
     /**
      * Select the specified index
-     * @param {number} index
      */
-    select(index) {
+    public select(index: number): void {
         const action = this._actionsVisible[index];
-        let result = action;
+        let result: Action = action;
 
         // Call function on Action if given
         if (typeof action.call === 'function') {
@@ -211,15 +212,15 @@ class ActionList {
         }
 
         // Resolve outcome
-        this._promise.resolve(result);
+        if (this._promise.resolve) {
+            this._promise.resolve(result);
+        }
     }
 
     /**
      * Handle key press
-     * @param key
-     * @private
      */
-    _onKeyPress(key) {
+    public _onKeyPress(key: string): void {
 
         switch (KEY_MAP[key]) {
             case 'up':
@@ -236,10 +237,3 @@ class ActionList {
         }
     }
 }
-
-/**
- * Export Element
- *
- * @type {MessageBox}
- */
-exports.element = ActionList;

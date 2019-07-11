@@ -1,16 +1,26 @@
-'use strict';
+#!/usr/bin/env -S npx ts-node
+// this script can be run directly from CLI
 
-const term = require('terminal-kit').terminal;
-require('../index.js').plugin(term);
+// Terminal
+import {terminal} from "terminal-kit";
+import {TerminalKitPlugins} from "../src/types";
 
-const callback = function(item) {
+// Setup plugins
+import {plugin} from "../src/index";
+plugin(terminal);
+
+// Prompt
+const term = terminal as TerminalKitPlugins;
+
+const callback = (item: any) => {
     console.log(item);
-    term.processExit();
+    term.processExit(0);
 };
 
 // Control item R
 let show = false;
 
+term.clear();
 const list = term.ActionList({
     x: 0,
     y: 2,
@@ -31,4 +41,4 @@ setInterval(() => {
 }, 1500);
 
 // Action list does not grab input by itself
-term.grabInput();
+term.grabInput(true);

@@ -1,7 +1,17 @@
-'use strict';
+#!/usr/bin/env -S npx ts-node
+// this script can be run directly from CLI
 
-const term = require('terminal-kit').terminal;
-require('../index.js').plugin(term);
+// Terminal
+import {terminal} from "terminal-kit";
+import {TerminalKitPlugins} from "../src/types";
+
+// Setup plugins
+import {plugin} from "../src/index";
+plugin(terminal);
+
+// Prompt
+const term = terminal as TerminalKitPlugins;
+term.clear();
 
 // Standard message types
 term.Message('Default message');
@@ -25,6 +35,7 @@ term.noFormat('\n');
 
 // Custom message design
 term.Message().addType('alias', {
+    id: 'alias',
     prefix: '[TEST]',
     padding: 2,
     full_width: true,

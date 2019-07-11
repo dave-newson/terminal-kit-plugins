@@ -1,17 +1,16 @@
 import {Terminal} from 'terminal-kit';
 import {ElementFactory} from './factory';
-import {Confirm, ConfirmFactory} from './element/confirm';
-import {TextPrompt, TextPromptFactory, TextPromptOptions} from './element/text-prompt';
-import {MessageBox, MessageBoxFactory, MessageBoxOptions} from './element/message-box';
-import {BasicTable, TableFactory, TableOptions} from './element/table';
-import {ImageElementFactory, ImageElementOptions} from './element/image';
-import {ExecActionFactory, ExecResult, IExecOptions} from './action/exec';
-import {SleepAction, SleepActionFactory} from './action/sleep';
-import {IMessageStyle, Message, MessageFactory} from './element/message';
-import {ActionList, ActionListFactory, ActionListOptions} from './element/action-list';
-import {HeaderBar, HeaderBarFactory} from './element/header-bar';
-import {DataTable, DataTableFactory, DataTableOptions} from './element/data-table';
-import {BrowserAction} from './action/browser';
+import {ConfirmFactory} from './element/confirm';
+import {TextPromptFactory} from './element/text-prompt';
+import {MessageBoxFactory} from './element/message-box';
+import {TableFactory} from './element/table';
+import {ImageElementFactory} from './element/image';
+import {ExecActionFactory} from './action/exec';
+import { SleepActionFactory} from './action/sleep';
+import {MessageFactory} from './element/message';
+import {ActionListFactory} from './element/action-list';
+import {HeaderBarFactory} from './element/header-bar';
+import {DataTableFactory} from './element/data-table';
 
 /**
  * Element list

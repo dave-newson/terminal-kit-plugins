@@ -53,12 +53,12 @@ export class TextPrompt {
 
         // Await input
         return new Promise((resolve, reject) => {
-            this._terminal.inputField(this._options, (err: any, response: string) => {
+            this._terminal.inputField(this._options, (err: any, response: string | undefined) => {
                 // Ensure new line after entry
                 this._terminal.noFormat('\n');
 
                 // Handle outcome
-                return (err) ? reject(err) : resolve(response);
+                return (err) ? reject(err) : resolve(response as string);
             });
         });
     }

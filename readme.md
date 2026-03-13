@@ -117,25 +117,35 @@ Simple way to scroll through some action options.
 ### Data Table
 
 Displays a table of data which can contain more items than the current screen height supports.
-Provides type-to-search, scrolling, and extensive style options. 
+Provides type-to-search filtering, scrolling, optional column headings, and extensive style options.
+
+Layout (top to bottom):
+- **Header row** — rendered when any column defines a `heading`
+- **Data rows** — scrollable, with selection highlight
+- **Filter bar** — filter input on the left, item count on the right
+
+Type-to-search is case-insensitive. The filter bar is always visible at the bottom.
 
 ```js
 const table = term.DataTable({
     x: 0,
     y: 5,
-    width: null, // Full width
-    height: 5, // 5 items high
+    width: null,  // Full width
+    height: 10,
     style: term.brightWhite.bgBlack,
     selectedStyle: term.bgBrightWhite.black,
-    scrollPadding: 3, // Page starts scrolling when cursor gets those close to the edge
-    padding: 1, // Padding between cells
-    filterTextSize: 16, // Size of type-to-search filter
+    headingStyle: term.brightCyan.bgBlack, // Optional: style for the header row
+    scrollPadding: 3,
+    padding: 1,
+    filterTextSize: 16,
     columns: [
         {
+            heading: 'Name',   // Activates the header row
             get: 'name',
             width: 20,
         },
         {
+            heading: 'Status',
             get: (item) => (item.online ? "Online" : "Offline"),
             width: 10,
             style: (item) => (item.online ? term.brightGreen : term.brightRed),

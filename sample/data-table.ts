@@ -17,18 +17,21 @@ const table = term.DataTable({
     x: 0,
     y: 5,
     // width: undefined = Full width
-    height: 5, // 5 items high
+    height: 10,
     style: term.brightWhite.bgBlack,
     selectedStyle: term.bgBrightWhite.black,
-    scrollPadding: 3, // Page starts scrolling when cursor gets those close to the edge
-    padding: 1, // Padding between cells
-    filterTextSize: 16, // Size of type-to-search filter
+    headingStyle: term.brightCyan.bgBlack,
+    scrollPadding: 3, // Page starts scrolling when cursor gets this close to the edge
+    padding: 1,       // Padding between cells
+    filterTextSize: 16,
     columns: [
         {
+            heading: 'Name',
             get: 'name',
             width: 20,
         },
         {
+            heading: 'Status',
             get: (item) => (item.online ? "Online" : "Offline"),
             width: 20,
             style: (item) => (item.online ? term.brightGreen : term.brightRed),

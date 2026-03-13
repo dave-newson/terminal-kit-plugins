@@ -17,6 +17,7 @@ export interface DataTableOptions {
     allowCancel?: boolean;
     style?: Terminal;
     selectedStyle?: Terminal;
+    headingStyle?: Terminal;
     scrollPadding?: number;
     padding?: number;
     columns: ITableColumn[];
@@ -48,9 +49,11 @@ const defaultKeyBindings: { [key: string]: string } = {
  * Definition of a table column
  */
 export interface ITableColumn {
-    get: string | ((object ?: any) => string);
+    get: string | ((object?: any) => string);
     style?: Terminal | ((item: any) => Terminal);
     width: number;
+    /** Optional column heading. When any column defines a heading, a header row is rendered above the data. */
+    heading?: string;
 }
 
 /**
@@ -80,6 +83,7 @@ class TableConfig {
     public style: {
         default: Terminal,
         selected: Terminal,
+        heading: Terminal,
     };
     public scrollPadding: number;
     public padding: number;
@@ -108,6 +112,7 @@ class TableConfig {
         this.style = {
             default: options.style || terminal.bgBlack.brightWhite,
             selected: options.selectedStyle || terminal.bgBrightYellow.black,
+            heading: options.headingStyle || options.style || terminal.bgBlack.brightWhite,
         };
 
         // Scroll Padding (how many lines before the edge to start scrolling)
@@ -129,7 +134,7 @@ class TableConfig {
             }
         });
 
-        // Width of text input
+        // Width of text input for the filter bar
         this.filterTextSize = options.filterTextSize || 16;
     }
 }
@@ -302,9 +307,12 @@ class TableState extends EventEmitter {
     }
 
     /**
-     * Re-filter the data items by setting visibility flags
+     * Re-filter the data items by setting visibility flags.
+     * Matching is always case-insensitive.
      */
     public refilter(): void {
+        const filterUpper = this.filter.toUpperCase();
+
         this.items.forEach((item) => {
 
             // Check for text in cells
@@ -314,9 +322,9 @@ class TableState extends EventEmitter {
                 if (typeof this.config.filter === 'function') {
                     return this.config.filter(this.filter, item);
                 } else {
-                    return (String(getColumn(column.get, item.cells))
+                    return String(getColumn(column.get, item.cells))
                         .toUpperCase()
-                        .indexOf(this.filter.toUpperCase()) > -1);
+                        .indexOf(filterUpper) > -1;
                 }
             });
 
@@ -329,8 +337,13 @@ class TableState extends EventEmitter {
 /**
  * Provides a table of the given tableData, which can be:
  *  - Browsed (up/down)
- *  - Filtered; by typing
- * - "Submitted"; chosen option is resolved in the table's Promise
+ *  - Filtered; by typing (case-insensitive)
+ *  - "Submitted"; chosen option is resolved in the table's Promise
+ *
+ * Layout:
+ *  - [optional header row]  — rendered when any column defines a `heading`
+ *  - [data rows]
+ *  - [filter bar]           — filter input left, item count right
  */
 export class DataTable extends EventEmitter {
     public promise: Promise<any>;
@@ -355,8 +368,8 @@ export class DataTable extends EventEmitter {
         };
 
         // Attach Events
-        this._state.on('change', this._events.redraw.bind(this));
-        this._term.on('key', this._events.onKeyPress.bind(this));
+        this._state.on('change', this._events.redraw);
+        this._term.on('key', this._events.onKeyPress);
 
         // Grab the input state
         if (!this.grabbing) {
@@ -440,16 +453,21 @@ export class DataTable extends EventEmitter {
                 this._state.filter = this._state.filter.slice(0, -1);
                 break;
             default:
+                // Append typed characters as lowercase for consistent display
                 if (key.length === 1) {
-                    this._state.filter += key;
+                    this._state.filter += key.toLowerCase();
                 }
-
                 break;
         }
     }
 
     /**
-     * Redraw the current display area
+     * Redraw the current display area.
+     *
+     * Layout (top to bottom):
+     *   [header row]   — only if any column defines `heading`
+     *   [data rows]
+     *   [filter bar]   — "Filter: [text]"  left,  "[ N Items ]"  right
      */
     public redraw(): void {
 
@@ -457,13 +475,15 @@ export class DataTable extends EventEmitter {
             this._term.moveTo(1, this._config.y);
         }
 
-        // Rows token up by the filter
-        const filterHeight = 2;
+        const hasHeaders = this._config.columns.some((col) => col.heading);
+        const headerHeight = hasHeaders ? 1 : 0;
+        const bottomBarHeight = 1;
+        const dataHeight = this._state.displayArea.height - headerHeight - bottomBarHeight;
 
-        // Calculate the number of visible items
+        // Calculate visible items
         const filteredItems = this._state.getFilteredItems();
 
-        // If the selection is no longer visible, make a new selection
+        // If the selection is no longer visible, select the first visible item
         if (
             filteredItems.length &&
             filteredItems.filter((item) => (item.index === this._state.selectedIndex)).length === 0
@@ -471,76 +491,53 @@ export class DataTable extends EventEmitter {
             this._state.selectedIndex = filteredItems[0].index;
         }
 
-        // Default height
-        let height = this._state.displayArea.height - filterHeight;
-
-        // More items than height?
-        // Give room for the "... more ..." notice
-        if (filteredItems.length > height) {
-            height -= 2;
-        }
-
-        // Ensure selected index is within visible yScroll
+        // Ensure selected index is within the visible scroll window
         let pos = 0;
         filteredItems.forEach((item) => {
 
             if (item.index === this._state.selectedIndex) {
 
-                // Before bounds? Relocate yscroll
+                // Before bounds? Scroll up
                 if (pos < this._state.displayArea.yScroll) {
                     this._state.displayArea.yScroll = pos;
                 }
 
-                // Past bounds? Relocate yscroll
-                if (pos >= this._state.displayArea.yScroll + height) {
-                    this._state.displayArea.yScroll = 1 + (pos - height);
+                // Past bounds? Scroll down
+                if (pos >= this._state.displayArea.yScroll + dataHeight) {
+                    this._state.displayArea.yScroll = 1 + (pos - dataHeight);
                 }
             }
 
             pos++;
         });
 
-        // Slice to max number of items visible
+        // Slice to the visible window
         const visibleItems = filteredItems.slice(
             this._state.displayArea.yScroll,
-            this._state.displayArea.yScroll + height
+            this._state.displayArea.yScroll + dataHeight,
         );
 
-        // Display code
         let cursorPos = this._state.displayArea.y;
 
-        // Move to Filter position
-        this._term.moveTo(this._state.displayArea.x, cursorPos);
-
-        // Filter text
-        const filterText = ' Filter: [' + this._state.filter.padEnd(this._config.filterTextSize, ' ') + ']';
-        this._config.style.default(filterText);
-
-        // Move cursor to Table start position
-        cursorPos += filterHeight;
-        this._term.moveTo(this._state.displayArea.x, cursorPos++);
-        if (this._state.displayArea.yScroll > 0) {
-            this._config.style.default(
-                String(
-                    ' [ ' +
-                    this._state.displayArea.yScroll +
-                    ' more items ... ] '
-                )
-                .padEnd(this._state.displayArea.width)
-            );
-        } else {
-            this._config.style.default(String().padEnd(this._state.displayArea.width, ' '));
+        // Header row
+        if (hasHeaders) {
+            this._term.moveTo(this._state.displayArea.x, cursorPos++);
+            this._config.columns.forEach((column) => {
+                const heading = (column.heading || '').slice(0, column.width);
+                const text = heading
+                    .padEnd(column.width + this._config.padding, ' ')
+                    .padStart(column.width + (this._config.padding * 2), ' ');
+                this._config.style.heading(text);
+            });
         }
 
-        // Cycle for X rows until height
+        // Data rows
         let row = 0;
         visibleItems.forEach((item) => {
             row++;
 
-            // Move cursor to start of row
             this._term.moveTo(this._state.displayArea.x, cursorPos++);
 
-            // For each column ...
             this._config.columns.forEach((column) => {
 
                 // Column style
@@ -564,28 +561,18 @@ export class DataTable extends EventEmitter {
             });
         });
 
-        // Fill in missing rows with empty
-        for (; row < height; row++) {
-
+        // Fill remaining rows with blank
+        for (; row < dataHeight; row++) {
             this._term.moveTo(this._state.displayArea.x, cursorPos++);
-
             this._config.style.default(String().padEnd(this._state.displayArea.width, ' '));
         }
 
-        // X More?
-        this._term.moveTo(this._state.displayArea.x, cursorPos++);
-
-        const offScreen = filteredItems.length - height - this._state.displayArea.yScroll;
-        if (offScreen > 0) {
-            this._config.style.default(' [ ' + offScreen + ' more items ... ] '.padEnd(this._state.displayArea.width));
-        } else {
-            this._config.style.default(String().padEnd(this._state.displayArea.width, ' '));
-        }
-
-        // Number of items (aligned right, bottom)
-        const itemCountMsg = '[ ' + filteredItems.length + ' Items ] ';
-        this._term.moveTo(this._state.displayArea.x + this._state.displayArea.width - itemCountMsg.length, cursorPos);
-        this._config.style.default(itemCountMsg);
+        // Bottom bar: filter input on left, item count on right
+        this._term.moveTo(this._state.displayArea.x, cursorPos);
+        const filterText = ' Filter: [' + this._state.filter.padEnd(this._config.filterTextSize, ' ') + '] ';
+        const itemCountMsg = ' [ ' + filteredItems.length + ' Items ] ';
+        const gapWidth = this._state.displayArea.width - filterText.length - itemCountMsg.length;
+        this._config.style.default(filterText + ' '.repeat(Math.max(0, gapWidth)) + itemCountMsg);
 
         // Reset cursor
         this._term.moveTo(0, 0);
@@ -633,9 +620,10 @@ export class DataTable extends EventEmitter {
     }
 
     /**
-     * Destroy the element int
+     * Destroy the element
      */
     private _destroy(): void {
         this._term.off('key', this._events.onKeyPress);
+        this._state.off('change', this._events.redraw);
     }
 }

@@ -1,0 +1,28 @@
+import { Terminal } from 'terminal-kit';
+import { ConfirmFactory } from './element/confirm';
+import { TextPromptFactory } from './element/text-prompt';
+import { MessageBoxFactory } from './element/message-box';
+import { TableFactory } from './element/table';
+import { ImageElementFactory } from './element/image';
+import { ExecActionFactory } from './action/exec';
+import { SleepActionFactory } from './action/sleep';
+import { MessageFactory } from './element/message';
+import { ActionListFactory } from './element/action-list';
+import { HeaderBarFactory } from './element/header-bar';
+import { DataTableFactory } from './element/data-table';
+import { BrowserActionFactory } from './action/browser';
+export declare const elements: {
+    ActionList: typeof ActionListFactory;
+    Confirm: typeof ConfirmFactory;
+    DataTable: typeof DataTableFactory;
+    MessageBox: typeof MessageBoxFactory;
+    Message: typeof MessageFactory;
+    TextPrompt: typeof TextPromptFactory;
+    HeaderBar: typeof HeaderBarFactory;
+    Table: typeof TableFactory;
+    Image: typeof ImageElementFactory;
+    Exec: typeof ExecActionFactory;
+    Sleep: typeof SleepActionFactory;
+    Browser: typeof BrowserActionFactory;
+};
+export declare function plugin(terminalKit: Terminal, elementList?: null | {}): void;
